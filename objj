@@ -1,0 +1,678 @@
+/**
+ * @file 对象深拷贝
+ *
+ * @module wy/common/util/extend
+ * @example
+ * import extend from 'wy/common/util/extend'
+ *
+ * console.log(extend({a:1, b:2}, {b:{c:3}, d:4})); // output: {a:1, b:{c:3}, d:4}
+ */
+// String to Object flags format cache
+let class2type = {};
+each("Boolean Number String Function Array Date RegExp Object".split(" "), function(i, name) {
+	class2type[ "[object " + name + "]" ] = name.toLowerCase();
+});
+
+function extend() {
+	let options, name, src, copy, copyIsArray, clone,
+		target = arguments[0] || {},
+		i = 1,
+		length = arguments.length,
+		deep = false;
+
+	// Handle a deep copy situation
+	if(typeof target === "boolean") {
+		deep = target;
+		target = arguments[1] || {};
+		// skip the boolean and the target
+		i = 2;
+	}
+
+	// Handle case when target is a string or something (possible in deep copy)
+	if(typeof target !== "object" && !isFunction(target)) {
+		target = {};
+	}
+
+	// extend itself if only one argument is passed
+	if(length === i) {
+		target = this;
+		--i;
+	}
+
+	for(; i < length; i++) {
+		// Only deal with non-null/undefined values
+		if((options = arguments[ i ]) != null) {
+			// Extend the base object
+			for(name in options) {
+				src = target[ name ];
+				copy = options[ name ];
+
+				// Prevent never-ending loop
+				if(target === copy) {
+					continue;
+				}
+
+				// Recurse if we're merging plain objects or arrays
+				if(deep && copy && ( isPlainObject(copy) || (copyIsArray = isArray(copy)) )) {
+					if(copyIsArray) {
+						copyIsArray = false;
+						clone = src && isArray(src) ? src : [];
+
+					} else {
+						clone = src && isPlainObject(src) ? src : {};
+					}
+
+					// Never move original objects, clone them
+					target[ name ] = extend(deep, clone, copy);
+
+					// Don't bring in undefined values
+				} else if(copy !== undefined) {
+					target[ name ] = copy;
+				}
+			}
+		}
+	}
+
+	// Return the modified object
+	return target;
+}
+
+
+// See test/unit/core.js for details concerning isFunction.
+// Since version 1.3, DOM methods and functions like alert
+// aren't supported. They return false on IE (#2968).
+function isFunction(obj) {
+	return type(obj) === "function";
+}
+
+function isArray(obj) {
+	return Array.isArray ? Array.isArray(obj) : type(obj) === "array";
+}
+
+// A crude way of determining if an object is a window
+function isWindow(obj) {
+	return obj && typeof obj === "object" && "setInterval" in obj;
+}
+
+function isNumeric(obj) {
+	return !isNaN(parseFloat(obj)) && isFinite(obj);
+}
+
+function type(obj) {
+	return obj == null ?
+		String(obj) :
+		class2type[ Object.prototype.toString.call(obj) ] || "object";
+}
+
+function isPlainObject(obj) {
+	// Must be an Object.
+	// Because of IE, we also have to check the presence of the constructor property.
+	// Make sure that DOM nodes and window objects don't pass through, as well
+	if(!obj || type(obj) !== "object" || obj.nodeType || isWindow(obj)) {
+		return false;
+	}
+
+	try {
+		// Not own constructor property must be Object
+		if(obj.constructor && !hasOwn.call(obj, "constructor") && !hasOwn.call(obj.constructor.prototype, "isPrototypeOf")) {
+			return false;
+		}
+	} catch(e) {
+		// IE8,9 Will throw exceptions on certain host objects #9897
+		return false;
+	}
+
+	// Own properties are enumerated firstly, so to speed up,
+	// if last one is own, then all properties are own.
+
+	let key;
+	for(key in obj) {
+	}
+
+	return key === undefined || hasOwn.call(obj, key);
+}
+
+function isEmptyObject(obj) {
+	for(let name in obj) {
+		return false;
+	}
+	return true;
+}
+
+function error(msg) {
+	throw new Error(msg);
+}
+
+// args is for internal usage only
+function each(object, callback, args) {
+	let name, i = 0,
+		length = object.length,
+		isObj = length === undefined || isFunction(object);
+
+	if(args) {
+		if(isObj) {
+			for(name in object) {
+				if(callback.apply(object[ name ], args) === false) {
+					break;
+				}
+			}
+		} else {
+			for(; i < length;) {
+				if(callback.apply(object[ i++ ], args) === false) {
+					break;
+				}
+			}
+		}
+
+		// A special, fast, case for the most common use of each
+	} else {
+		if(isObj) {
+			for(name in object) {
+				if(callback.call(object[ name ], name, object[ name ]) === false) {
+					break;
+				}
+			}
+		} else {
+			for(; i < length;) {
+				if(callback.call(object[ i ], i, object[ i++ ]) === false) {
+					break;
+				}
+			}
+		}
+	}
+
+	return object;
+}
+
+module.exports = extend;
+
+
+
+// WEBPACK FOOTER //
+// ./common/util/extend.js
+// -------------------------分割线----------------------/**
+ * @file 数据格式化模块
+ * @author iscowei
+ * @date 17-05-18
+ * @module wy/common/format
+ */
+
+function pad(val, len) {
+    val = String(val)
+    len = len || 2
+    while (val.length < len) {
+        val = '0' + val
+    }
+    return val
+}
+
+function getWeek(date) {
+    // Remove time components of date
+    let targetThursday = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+
+    // Change date to Thursday same week
+    targetThursday.setDate(targetThursday.getDate() - ((targetThursday.getDay() + 6) % 7) + 3)
+
+    // Take January 4th as it is always in week 1 (see ISO 8601)
+    let firstThursday = new Date(targetThursday.getFullYear(), 0, 4)
+
+    // Change date to Thursday same week
+    firstThursday.setDate(firstThursday.getDate() - ((firstThursday.getDay() + 6) % 7) + 3)
+
+    // Check if daylight-saving-time-switch occured and correct for it
+    let ds = targetThursday.getTimezoneOffset() - firstThursday.getTimezoneOffset()
+    targetThursday.setHours(targetThursday.getHours() - ds)
+
+    // Number of weeks between target Thursday and first Thursday
+    let weekDiff = (targetThursday - firstThursday) / (86400000 * 7)
+    return 1 + Math.floor(weekDiff)
+}
+
+function getDayOfWeek(date) {
+    let dow = date.getDay()
+    if (dow === 0) {
+        dow = 7
+    }
+    return dow
+}
+
+function today() {
+    var d = new Date()
+    d.setHours(0)
+    d.setMinutes(0)
+    d.setSeconds(0)
+    d.setMilliseconds(0)
+    return d
+}
+
+let oneDayTime = 1000 * 60 * 60 * 24
+
+
+let format = {
+    /**
+     * @param {Date | Number} date Date对象
+     * @param {String} mask 时间戳格式：yyyy-mm-dd HH:MM:ss
+     * @param {Boolean} utc 世界时间
+     * @param {Boolean} gmt 格林威治时间
+     * @returns {string} result
+     *
+     * @example
+     * import format from 'wy/common/format'
+     *
+     * // 格式化日期
+     * format.date()
+     * format.date(new Date(), 'yyyy-mm-dd HH:MM')
+     */
+    date: function (date, mask, utc, gmt) {
+        let token = /d{1,4}|m{1,4}|yy(?:yy)?|([HhMsTt])\1?|[LloSZWN]|'[^']*'|'[^']*'/g
+        let timezone = /\b(?:[PMCEA][SDP]T|(?:Pacific|Mountain|Central|Eastern|Atlantic) (?:Standard|Daylight|Prevailing) Time|(?:GMT|UTC)(?:[-+]\d{4})?)\b/g
+        let timezoneClip = /[^-+\dA-Z]/g
+
+        let masks = {
+            'default': 'yyyy-mm-dd HH:MM:ss',
+            'shortDate': 'm/d/yy',
+            'mediumDate': 'mmm d, yyyy',
+            'longDate': 'mmmm d, yyyy',
+            'fullDate': 'dddd, mmmm d, yyyy',
+            'shortTime': 'h:MM TT',
+            'mediumTime': 'h:MM:ss TT',
+            'longTime': 'h:MM:ss TT Z',
+            'isoDate': 'yyyy-mm-dd',
+            'isoTime': 'HH:MM:ss',
+            'isoDateTime': 'yyyy-mm-dd\'T\'HH:MM:sso',
+            'isoUtcDateTime': 'UTC:yyyy-mm-dd\'T\'HH:MM:ss\'Z\'',
+            'expiresHeaderFormat': 'ddd, dd mmm yyyy HH:MM:ss Z'
+        }
+        // Internationalization strings
+        let i18n = {
+            dayNames: [
+                'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat',
+                'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
+            ],
+            monthNames: [
+                'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+                'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'
+            ]
+        }
+
+        // You can't provide utc if you skip other args (use the 'UTC:' mask prefix)
+        if (arguments.length === 1 && typeof date === 'string' && !/\d/.test(date)) {
+            mask = date
+            date = undefined
+        }
+
+        date = date || new Date
+
+        if (!(date instanceof Date)) {
+            // modified by maplemiao, make it compatible for 10 digits unix timestamp
+            if (typeof date === 'number' && date.toString().length == 10) {
+                date = date * 1000
+            }
+            // modified done
+            date = new Date(date)
+        }
+
+        if (isNaN(date)) {
+            throw TypeError('Invalid date')
+        }
+
+        mask = String(masks[mask] || mask || masks['default'])
+
+        // Allow setting the utc/gmt argument via the mask
+        let maskSlice = mask.slice(0, 4)
+        if (maskSlice === 'UTC:' || maskSlice === 'GMT:') {
+            mask = mask.slice(4)
+            utc = true
+            if (maskSlice === 'GMT:') {
+                gmt = true
+            }
+        }
+
+        let _ = utc ? 'getUTC' : 'get'
+        let d = date[_ + 'Date']()
+        let D = date[_ + 'Day']()
+        let m = date[_ + 'Month']()
+        let y = date[_ + 'FullYear']()
+        let H = date[_ + 'Hours']()
+        let M = date[_ + 'Minutes']()
+        let s = date[_ + 'Seconds']()
+        let L = date[_ + 'Milliseconds']()
+        let o = utc ? 0 : date.getTimezoneOffset()
+        let W = getWeek(date)
+        let N = getDayOfWeek(date)
+        let flags = {
+            d: d,
+            dd: pad(d),
+            ddd: i18n.dayNames[D],
+            dddd: i18n.dayNames[D + 7],
+            m: m + 1,
+            mm: pad(m + 1),
+            mmm: i18n.monthNames[m],
+            mmmm: i18n.monthNames[m + 12],
+            yy: String(y).slice(2),
+            yyyy: y,
+            h: H % 12 || 12,
+            hh: pad(H % 12 || 12),
+            H: H,
+            HH: pad(H),
+            M: M,
+            MM: pad(M),
+            s: s,
+            ss: pad(s),
+            l: pad(L, 3),
+            L: pad(Math.round(L / 10)),
+            t: H < 12 ? 'a' : 'p',
+            tt: H < 12 ? 'am' : 'pm',
+            T: H < 12 ? 'A' : 'P',
+            TT: H < 12 ? 'AM' : 'PM',
+            Z: gmt ? 'GMT' : utc ? 'UTC' : (String(date).match(timezone) || ['']).pop().replace(timezoneClip, ''),
+            o: (o > 0 ? '-' : '+') + pad(Math.floor(Math.abs(o) / 60) * 100 + Math.abs(o) % 60, 4),
+            S: ['th', 'st', 'nd', 'rd'][d % 10 > 3 ? 0 : (d % 100 - d % 10 != 10) * d % 10],
+            W: W,
+            N: N
+        }
+
+        return mask.replace(token, function (match) {
+            if (match in flags) {
+                return flags[match]
+            }
+            return match.slice(1, match.length - 1)
+        })
+    },
+
+    /**
+     * 美化日期输出
+     * @param {Date|Number} date 日期对象或时间戳
+     * @param {Boolean} hasTime 是否显示时间
+     * @returns {String} result
+     *
+     * @example
+     * import format from 'wy/common/format'
+     *
+     * // 美化日期输出
+     * format.prettyDate()  //output: 今天
+     * format.prettyDate(new Date(), true) //output: 今天 20:30
+     */
+    prettyDate: function(date, hasTime = false) {
+        let todayTime = today().getTime()
+        date = date || new Date
+
+        if (!(date instanceof Date)) {
+            // modified by maplemiao, make it compatible for 10 digits unix timestamp
+            if (typeof date === 'number' && date.toString().length == 10) {
+                date = date * 1000
+            }
+            // modified done
+            date = new Date(date)
+        }
+
+        if (isNaN(date)) {
+            throw TypeError('Invalid date')
+        }
+
+        let nowYear = new Date().getFullYear()
+        let y = date.getFullYear()
+
+        if(y != nowYear) { //非今年的
+            let d = format.date(date, 'yyyy-mm-dd')
+            d = d.split('-')
+            return `${d[0]}年${d[1]}月${d[2]}日`
+        }
+
+        let time = hasTime ? format.date(date, 'HH:MM') : ''
+        let dateTime = date.getTime()
+
+        if(dateTime >= todayTime && dateTime < todayTime + oneDayTime) { //今天的
+            return hasTime ? `今天 ${time}` : '今天'
+        } else if(dateTime < todayTime && dateTime >= todayTime - oneDayTime) { //昨天的
+            return hasTime ? `昨天 ${time}` : '昨天'
+        } else {  //今年的
+            let m = pad(date.getMonth() + 1)
+            let d = pad(date.getDate())
+
+            return hasTime ? `${m}月${d}日 ${time}` : `${m}月${d}日`
+        }
+
+    },
+
+    /**
+     * 格式化时长，转为以HH:MM:SS格式显示
+     * @param {Number} seconds - 总秒数
+     * @param {String} str 格式
+     * @returns {String} - result
+     */
+    longTime: function(seconds, str) {
+        const hour = Math.floor(seconds / 3600)
+        const minute = Math.floor((seconds - hour*3600) / 60)
+        const second = Math.floor(seconds - minute * 60 - hour * 3600)
+        if (str) {
+            return str.replace('hh', pad(hour)).replace('mm', pad(minute)).replace('ss', pad(second))
+        } else {
+            if (hour) {
+                return `${pad(hour)}:${pad(minute)}:${pad(second)}`
+            } else {
+                return `${pad(minute)}:${pad(second)}`
+            }
+        }
+    },
+    /**
+     * 格式化文件大小，如果小于0 返回 '-'
+     * @param {Number} bytes 文件大小
+     * @param {Number} decimal_digits 保留小数位数
+     * @param {Boolean} [with_b=true] KB而非K
+     * @returns {string} - result
+     *
+     * @example
+     * // 格式化文件大小
+     * format.size(12345, 2);
+     */
+    size: function (bytes, decimal_digits, with_b = true) {
+        let BYTE_UNITS = ['B', 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y', 'D', 'N', '...'] // 字节单位
+        let BYTE_UNITS_B = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB', 'DB', 'NB', '...'] // 字节单位
+        let unit, size, decimal_mag, decimal_size
+
+        if(bytes < 0 || typeof bytes !== 'number') {
+            return '-'
+        }
+
+        bytes = parseInt(bytes)
+        decimal_digits = parseInt(decimal_digits)
+        decimal_digits = decimal_digits >= 0 ? decimal_digits : 2
+
+        if (!bytes) return '0 B'
+
+        unit = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)))
+        if(unit > 4) {
+            unit = 4 //只显示到T的级别
+        }
+        size = bytes / Math.pow(1024, unit)
+        decimal_mag = Math.pow(10, decimal_digits) // 2位小数 -> 100，3位小数 -> 1000
+        decimal_size = Math.round(size * decimal_mag) / decimal_mag  // 12.345 -> 12.35
+
+        return decimal_size + ' ' + (with_b ? BYTE_UNITS_B[unit] : BYTE_UNITS[unit])
+    },
+    /**
+     * 将对象转为url参数，替代JQuery的$.param
+     * @param {Object} obj 需要转换的对象
+     * @param {String} separator 分割符
+     * @param {Boolean} encode 是否需要encodeURIComponent
+     * @returns {string} result
+     *
+     * @example
+     * // 转换url参数
+     * var obj={name:'tom','class': 12};
+     * format.param(obj)
+     * output: name=tom&class=12
+     */
+    param: function param(obj, separator = '&', encode = false) {
+        if(obj == null) return ''
+        var params = []
+
+        for(let o in obj) {
+            params.push(o + '=' + (encode ? encodeURIComponent(obj[o]) : obj[o]))
+        }
+        return params.join(separator)
+    },
+    /**
+     * 提取页面url参数
+     * @param {String} key 键值
+     * @param {Boolean} decode 是否需要decodeURIComponent
+     * @returns {any} - result
+     *
+     * @example
+     * url: https://xxx.xxx.com/?page=1
+     * format.query('page')
+     * output: 1
+     */
+    query: function query(key, decode = false) {
+        var reg = new RegExp('(^|&)' + key + '=([^&]*)(&|$)', 'i') // 匹配目标参数
+        var result = window.location.search.substr(1).match(reg) // 对querystring匹配目标参数
+        if (result) {
+            if(decode) {
+                return decodeURIComponent(result[2])
+            } else {
+                return result[2]
+            }
+        } else {
+            return null
+        }
+    },
+
+    /**
+     * 格式化money
+     * @param {Number} number 数额
+     * @param {Number} places 小数点
+     * @param {String} symbol 货币符号
+     * @param {String} thousand 千分位间隔符
+     * @param {decimal} decimal 小数点符
+     * @return {String} 格式化后的money
+     */
+    money: function(number, places, symbol, thousand, decimal) {
+        number = number || 0
+        places = !isNaN(places = Math.abs(places)) ? places : 2
+        symbol = symbol !== undefined ? symbol : ''
+        thousand = thousand || ','
+        decimal = decimal || '.'
+
+        var negative = number < 0 ? '-' : ''
+        var i = parseInt(number = Math.abs(+number || 0).toFixed(places), 10) + ''
+        var j = (j = i.length) > 3 ? j % 3 : 0
+
+        return symbol + negative + (j ? i.substr(0, j) + thousand : '') + i.substr(j).replace(/(\d{3})(?=\d)/g, '$1' + thousand) + (places ? decimal + Math.abs(number - i).toFixed(places).slice(2) : '')
+
+    }
+}
+
+module.exports = format
+
+
+
+// WEBPACK FOOTER //
+// ./common/format.js
+//-----------------------------分割线-------------------------------
+/**
+ * 生成密码工具
+ * @author hibincheng
+ * @date 2018-11-13
+ */
+
+let PWD_BASE_CHARS = '23456789abcdefghijkmnpqrstuvwxyz'
+let ALL_NUM_REG = /^[0-9]+$/
+
+function randomNum() {
+    return Math.round(Math.random() * (PWD_BASE_CHARS.length - 1))
+}
+
+/**
+ * 获取一个随机密码
+ * @param {Number} length 密码长度 默认(6位)
+ * @return {String} pwd
+ */
+function randomPwd(length){
+    length = length || 6
+    var t = ''
+    for(var i =0 ; i < length; i++) {
+        t += PWD_BASE_CHARS.charAt(randomNum())
+    }
+    if(ALL_NUM_REG.test(t)) { //不能全是数字
+        t = arguments.callee.call(this)
+    }
+    return t
+}
+
+module.exports.random = randomPwd
+
+
+// WEBPACK FOOTER //
+// ./common/util/password.js
+//分---------------------------------割线
+/**
+ * 字符串相关操作
+ * @type {{}}
+ */
+var exports = {
+    cut: function(text, showLen, ellipsis) {
+        ellipsis = ellipsis || '...';
+        var curLen = 0,
+            part1 = '',
+            part2 = '',
+            shoutCut = false;
+        showLen = showLen - ellipsis.length;
+        for(var i = 0, len = text.length; i < len; i++) {
+            var code = text.charCodeAt(i);
+            if(code < 128) {
+                curLen++;
+            } else {
+                curLen+=2;
+            }
+            if(curLen >= showLen) {
+                part1 = text.slice(0, i);
+                part2 = text.slice(-3);
+                shoutCut = true;
+                break;
+            }
+        }
+
+        if(shoutCut) {
+            return part1 + ellipsis + part2;
+        } else {
+            return text;
+        }
+    },
+    /**
+     * 尾截断，
+     * 例如：我很长很长 -> 我很长...
+     * @param text
+     * @param showLen 总共展示的长度，包括尾部省略符的长度
+     * @param ellipsis 尾部省略符，默认值为'...'
+     */
+    tailCut: function (text, showLen, ellipsis) {
+        ellipsis = ellipsis || '...';
+
+        if (text.length <= showLen) {
+            return text;
+        }
+
+        return text.slice(0, showLen - ellipsis.length) + ellipsis;
+    },
+
+    /**
+     * html转义，防止xss
+     * @param {String} text 要转义的字符串
+     * @return {String} 转义后的字符串
+     */
+    text: function(text) {
+        return text ? text.replace(/&/g, '&amp;').
+            replace(/</g, '&lt;').
+            replace(/>/g, '&gt;').
+            replace(/"/g, '&quot;').
+            replace(/'/g, '&#039;')
+            : '';
+    }
+};
+
+module.exports = exports;
+
+
+// WEBPACK FOOTER //
+// ./common/text.js
